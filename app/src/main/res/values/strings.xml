@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Teacher Connect</string>
+
+    <string-array name="request_types">
+        <item>Emergency leave</item>
+        <item>Sick leave</item>
+        <item>Transfer request</item>
+        <item>Course completion update</item>
+    </string-array>
+</resources>
