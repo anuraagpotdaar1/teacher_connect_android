@@ -19,7 +19,7 @@ class LoginActivity : AppCompatActivity() {
             val userID = binding.etUsername.text.toString().trim()
             val pass = binding.etPass.text.toString().trim()
 
-            if (pass == userID) {
+            if (pass == userID && userID.length > 4) {
                 checkIfIdExists(userID, onSuccess = {
                     val intent = Intent(this, DashboardActivity::class.java)
                     startActivity(intent)
