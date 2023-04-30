@@ -10,6 +10,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 class DashboardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDashboardBinding
+    private lateinit var name : String
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardBinding.inflate(layoutInflater)
@@ -28,6 +29,13 @@ class DashboardActivity : AppCompatActivity() {
 
         binding.btnNewReq.setOnClickListener {
             val intent = Intent(this, NewRequestActivity::class.java)
+            intent.putExtra("Username", name)
+            startActivity(intent)
+        }
+
+        binding.btnAttendance.setOnClickListener {
+            val intent = Intent(this, AttendanceActivity::class.java)
+            intent.putExtra("Username", name)
             startActivity(intent)
         }
     }
@@ -44,7 +52,7 @@ class DashboardActivity : AppCompatActivity() {
             }
 
             if (snapshot != null && snapshot.exists()) {
-                val name = snapshot.getString("Personal_details.f_name")
+                name = snapshot.getString("Personal_details.f_name").toString()
                 val institute = snapshot.getString("Prev_postings.institute_name_1")
                 val behavior = snapshot.getString("Prev_postings.behavior")
                 val availableLeaves = snapshot.getLong("Prev_postings.availableLeaves")?.toInt()
