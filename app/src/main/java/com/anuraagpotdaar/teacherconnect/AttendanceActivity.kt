@@ -1,13 +1,9 @@
 package com.anuraagpotdaar.teacherconnect
 
 import android.Manifest
-import android.content.ContentValues.TAG
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -21,12 +17,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.anuraagpotdaar.teacherconnect.databinding.ActivityAttendanceBinding
 import com.anuraagpotdaar.teacherconnect.model.FaceNetModel
-import com.anuraagpotdaar.teacherconnect.model.ModelInfo
 import com.anuraagpotdaar.teacherconnect.model.Models
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
-import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -125,7 +120,7 @@ class AttendanceActivity : AppCompatActivity() {
                 .addOnSuccessListener { faces ->
                     if (faces.size == 1) {
                         val face = faces.first()
-                        val faceBitmap = cropFace(inputImage, imageProxy, face)
+                        val faceBitmap = cropFace(imageProxy, face)
                         val faceEmbedding = faceNetModel.getFaceEmbedding(faceBitmap)
                         val referenceEmbedding = faceNetModel.getFaceEmbedding(referenceBitmap)
 
@@ -163,7 +158,7 @@ class AttendanceActivity : AppCompatActivity() {
     }
 }
 
-private fun cropFace(inputImage: InputImage, imageProxy: ImageProxy, face: com.google.mlkit.vision.face.Face): Bitmap {
+private fun cropFace(imageProxy: ImageProxy, face: Face): Bitmap {
     val faceBoundingBox = face.boundingBox
     val bitmap = imageProxy.toBitmap()
 

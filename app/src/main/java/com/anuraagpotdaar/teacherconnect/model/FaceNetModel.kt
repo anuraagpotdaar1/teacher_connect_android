@@ -48,7 +48,7 @@ class FaceNetModel(context : Context,
             else {
                 numThreads = 4
             }
-            setUseXNNPACK( useXNNPack )
+            useXNNPACK = useXNNPack
             useNNAPI = true
         }
         interpreter = Interpreter(FileUtil.loadMappedFile(context, model.assetsFilename ) , interpreterOptions )
