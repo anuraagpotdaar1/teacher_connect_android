@@ -1,5 +1,4 @@
 package com.anuraagpotdaar.teacherconnect.model
-
 class ModelInfo(
     val name : String ,
     val assetsFilename : String ,

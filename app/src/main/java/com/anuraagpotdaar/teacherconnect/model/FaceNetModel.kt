@@ -1,8 +1,12 @@
 package com.anuraagpotdaar.teacherconnect.model
 
+
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Handler
+import android.os.HandlerThread
 import android.util.Log
+import com.anuraagpotdaar.teacherconnect.facerecognitionhelper.Logger
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.gpu.CompatibilityList
@@ -15,16 +19,16 @@ import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import org.tensorflow.lite.support.tensorbuffer.TensorBufferFloat
 import java.nio.ByteBuffer
-import java.util.logging.Logger
+import java.util.concurrent.CountDownLatch
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sqrt
 
 // Utility class for FaceNet model
-class FaceNetModel(context : Context,
-                   var model : ModelInfo,
-                   useGpu : Boolean,
-                   useXNNPack : Boolean) {
+class FaceNetModel( context : Context ,
+                    var model : ModelInfo ,
+                    useGpu : Boolean ,
+                    useXNNPack : Boolean) {
 
     // Input image size for FaceNet model.
     private val imgSize = model.inputDims
@@ -32,58 +36,64 @@ class FaceNetModel(context : Context,
     // Output embedding size
     val embeddingDim = model.outputDims
 
-    private var interpreter : Interpreter
+    private lateinit var interpreter : Interpreter
+
     private val imageTensorProcessor = ImageProcessor.Builder()
         .add( ResizeOp( imgSize , imgSize , ResizeOp.ResizeMethod.BILINEAR ) )
         .add( StandardizeOp() )
         .build()
 
+    private val handlerThread = HandlerThread("FaceNetModelThread").apply { start() }
+    private val handler = Handler(handlerThread.looper)
     init {
+        // Initialize TFLiteInterpreter
         val interpreterOptions = Interpreter.Options().apply {
+            // Add the GPU Delegate if supported.
+            // See -> https://www.tensorflow.org/lite/performance/gpu#android
             if ( useGpu ) {
                 if ( CompatibilityList().isDelegateSupportedOnThisDevice ) {
                     addDelegate( GpuDelegate( CompatibilityList().bestOptionsForThisDevice ))
                 }
             }
             else {
+                // Number of threads for computation
                 numThreads = 4
             }
-            useXNNPACK = useXNNPack
+            setUseXNNPACK( useXNNPack )
             useNNAPI = true
         }
-        interpreter = Interpreter(FileUtil.loadMappedFile(context, model.assetsFilename ) , interpreterOptions )
+        handler.post {
+            interpreter = Interpreter(FileUtil.loadMappedFile(context, model.assetsFilename), interpreterOptions)
+            Logger.log("Using ${model.name} model.")
+        }
     }
 
+
+    // Gets an face embedding using FaceNet.
     fun getFaceEmbedding( image : Bitmap ) : FloatArray {
         return runFaceNet( convertBitmapToBuffer( image ))[0]
     }
 
+
+    // Run the FaceNet model.
     private fun runFaceNet(inputs: Any): Array<FloatArray> {
-        val t1 = System.currentTimeMillis()
-        val faceNetModelOutputs = Array( 1 ){ FloatArray( embeddingDim ) }
-        interpreter.run( inputs, faceNetModelOutputs )
-        Log.i( "Performance" , "${model.name} Inference Speed in ms : ${System.currentTimeMillis() - t1}")
+        val faceNetModelOutputs = Array(1) { FloatArray(embeddingDim) }
+        val latch = CountDownLatch(1)
+        handler.post {
+            interpreter.run(inputs, faceNetModelOutputs)
+            latch.countDown()
+        }
+        latch.await()
         return faceNetModelOutputs
     }
-
+    // Resize the given bitmap and convert it to a ByteBuffer
     private fun convertBitmapToBuffer( image : Bitmap) : ByteBuffer {
         return imageTensorProcessor.process( TensorImage.fromBitmap( image ) ).buffer
     }
 
-    fun isSamePerson(embedding1: FloatArray, embedding2: FloatArray, threshold: Float = 0.8f): Boolean {
-        val distance = distance(embedding1, embedding2)
-        return distance < threshold
-    }
 
-    private fun distance(embedding1: FloatArray, embedding2: FloatArray): Float {
-        var sum = 0f
-        for (i in embedding1.indices) {
-            val diff = embedding1[i] - embedding2[i]
-            sum += diff * diff
-        }
-        return sum
-    }
-
+    // Op to perform standardization
+    // x' = ( x - mean ) / std_dev
     class StandardizeOp : TensorOperator {
 
         override fun apply(p0: TensorBuffer?): TensorBuffer {
@@ -100,3 +110,4 @@ class FaceNetModel(context : Context,
         }
     }
 }
+
