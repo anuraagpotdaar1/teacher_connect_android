@@ -11,10 +11,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.anuraagpotdaar.teacherconnect.databinding.ActivityDashboardBinding
 import com.anuraagpotdaar.teacherconnect.databinding.CardItemBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.ParseException
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -49,12 +51,40 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         binding.btnAttendance.setOnClickListener {
-            val intent = Intent(this, AttendanceActivity::class.java)
-            intent.putExtra("Username", name)
-            startActivity(intent)
+            if (isTimeWithinRange(15, 16)) {
+                if (matchedId != null) {
+                    checkAttendance(matchedId)
+                }
+
+            } else {
+                showTimeRangeErrorDialog()
+            }
         }
         startAutoScroll(binding)
     }
+    private fun isTimeWithinRange(startHour: Int, endHour: Int): Boolean {
+        val calendar = Calendar.getInstance()
+        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+
+        return currentHour in startHour until endHour
+    }
+
+    private fun showTimeRangeErrorDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Attendance time frame")
+            .setMessage("Sorry, the attendance window is not available at this particular time. Try in institute specified time.")
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setNegativeButton("Test functionality") { dialog, _ ->
+                val intent = Intent(this, AttendanceActivity::class.java)
+                intent.putExtra("Username", name)
+                startActivity(intent)
+                dialog.dismiss()
+            }
+            .show()
+    }
+
 
     private fun fetchData(id: String) {
         val firestore = FirebaseFirestore.getInstance()
@@ -127,6 +157,44 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
     }
+    private fun checkAttendance(id: String) {
+        val firestore = FirebaseFirestore.getInstance()
+        val collectionRef = firestore.collection("teachers")
+        val documentRef = collectionRef.document(id)
+
+        documentRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Toast.makeText(this, "Failed to fetch data", Toast.LENGTH_SHORT).show()
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val attendanceMap = snapshot.get("attendance") as? Map<String, String> ?: emptyMap()
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val todayDate = dateFormat.format(Date())
+
+                if (attendanceMap.containsKey(todayDate)) {
+                    val time = attendanceMap[todayDate]
+                    if (time != null && isTimeWithinRange(15, 16)) {
+                        // Attendance already taken for the specified time range
+                        showTimeRangeErrorDialog()
+                    } else {
+                        // Attendance not taken for the specified time range
+                        val intent = Intent(this, AttendanceActivity::class.java)
+                        intent.putExtra("Username", name)
+                        startActivity(intent)
+                    }
+                } else {
+                    // Attendance not taken today
+                    val intent = Intent(this, AttendanceActivity::class.java)
+                    intent.putExtra("Username", name)
+                    startActivity(intent)
+                }
+            } else {
+                Toast.makeText(this, "No such document", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     private fun createCardView(cardItem: CardItem): CardItemBinding {
         val inflater = LayoutInflater.from(this)
@@ -167,5 +235,9 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
         handler.postDelayed(scrollRunnable, 2000)
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        SharedPreferencesUtil.clearAllSharedPreferences(this)
     }
 }

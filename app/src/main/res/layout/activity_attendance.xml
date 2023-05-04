@@ -13,7 +13,9 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" >
+
+    </androidx.camera.view.PreviewView>
 
     <com.anuraagpotdaar.teacherconnect.facerecognitionhelper.BoundingBoxOverlay
         android:id="@+id/bbox_overlay"
@@ -39,5 +41,16 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/tvGPScoordinates"
+        style="@style/Subheading"
+        android:textColor="@color/white"
+        android:textAlignment="center"
+        android:layout_marginTop="15dp"
+        tools:text="GPS coordinates"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

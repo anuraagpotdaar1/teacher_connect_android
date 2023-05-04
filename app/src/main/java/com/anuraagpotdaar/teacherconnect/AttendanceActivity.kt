@@ -2,9 +2,11 @@ package com.anuraagpotdaar.teacherconnect
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -38,24 +40,27 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.*
 import java.util.concurrent.Executors
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class AttendanceActivity : AppCompatActivity() {
 
     private var isSerializedDataStored = false
     private val SERIALIZED_DATA_FILENAME = "image_data"
-    private val SHARED_PREF_IS_DATA_STORED_KEY = "is_data_stored"
-    private lateinit var activityMainBinding: ActivityAttendanceBinding
+    private val SHARED_PREF_IS_DATA_STORED_KEY = SharedPreferencesUtil.IS_DATA_STORED_KEY
+    private lateinit var activityAttendanceBinding: ActivityAttendanceBinding
     private lateinit var previewView: PreviewView
     private lateinit var frameAnalyser: FrameAnalyser
     private lateinit var faceNetModel: FaceNetModel
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
-    private lateinit var sharedPreferences: SharedPreferences
     private val useGpu = true
     private val useXNNPack = true
     private val modelInfo = Models.FACENET
     private val cameraFacing = CameraSelector.LENS_FACING_FRONT
     private val firebaseAuth = FirebaseAuth.getInstance()
     private val firebaseStorage = FirebaseStorage.getInstance()
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     private lateinit var username : String
 
@@ -72,18 +77,30 @@ class AttendanceActivity : AppCompatActivity() {
 
         username = intent.getStringExtra("Username").toString()
 
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            // Request location permission
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),1000
+            )
+        } else {
+            getLastKnownLocation()
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.decorView.windowInsetsController!!
                 .hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
         } else {
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
         }
-        activityMainBinding = ActivityAttendanceBinding.inflate(layoutInflater)
-        setContentView(activityMainBinding.root)
+        activityAttendanceBinding = ActivityAttendanceBinding.inflate(layoutInflater)
+        setContentView(activityAttendanceBinding.root)
 
-        previewView = activityMainBinding.previewView
-        logTextView = activityMainBinding.logTextview
-        val boundingBoxOverlay = activityMainBinding.bboxOverlay
+        previewView = activityAttendanceBinding.previewView
+        logTextView = activityAttendanceBinding.logTextview
+        val boundingBoxOverlay = activityAttendanceBinding.bboxOverlay
         boundingBoxOverlay.cameraFacing = cameraFacing
         boundingBoxOverlay.setWillNotDraw(false)
         boundingBoxOverlay.setZOrderOnTop(true)
@@ -91,8 +108,7 @@ class AttendanceActivity : AppCompatActivity() {
         faceNetModel = FaceNetModel(this, modelInfo, useGpu, useXNNPack)
         frameAnalyser = FrameAnalyser(this, boundingBoxOverlay, faceNetModel)
 
-        sharedPreferences = getSharedPreferences("teacherconnect", Context.MODE_PRIVATE)
-        isSerializedDataStored = sharedPreferences.getBoolean(SHARED_PREF_IS_DATA_STORED_KEY, false)
+        isSerializedDataStored = SharedPreferencesUtil.getDataStoredStatus(this)
 
 
         if (!isSerializedDataStored) {
@@ -105,8 +121,7 @@ class AttendanceActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     isSerializedDataStored = true
-                    sharedPreferences.edit().putBoolean(SHARED_PREF_IS_DATA_STORED_KEY, true)
-                        .apply()
+                    SharedPreferencesUtil.saveDataStoredStatus(this@AttendanceActivity, true)
                     frameAnalyser.faceList = loadSerializedImageData()
                     // Call the setupCamera() function
                     setupCamera()
@@ -120,7 +135,62 @@ class AttendanceActivity : AppCompatActivity() {
         Logger.log("onCreate: Finished")
 
     }
+    private fun getLastKnownLocation() {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: ${location.latitude}, ${location.longitude}"
+                } else {
+                    activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Not available"
+                    showErrorDialog("Coordinates: Not available\nTry enabling Location access")
+                }
+            }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1000) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getLastKnownLocation()
+            } else {
+                activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Permission denied"
+                showErrorDialog("Coordinates: Permission denied")
+            }
+        }
+    }
+
+    private fun showErrorDialog(msg: String) {
+        MaterialAlertDialogBuilder(this)
+            .setMessage(msg)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+                finish()
+            }
+            .show()
+    }
     private fun setupCamera() {
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -207,7 +277,7 @@ class AttendanceActivity : AppCompatActivity() {
             flush()
             close()
         }
-        sharedPreferences.edit().putBoolean(SHARED_PREF_IS_DATA_STORED_KEY, true).apply()
+        SharedPreferencesUtil.saveDataStoredStatus(this, true)
         Logger.log("Saved image data")
     }
 
