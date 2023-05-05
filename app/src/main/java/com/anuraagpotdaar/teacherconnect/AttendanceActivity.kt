@@ -1,9 +1,6 @@
 package com.anuraagpotdaar.teacherconnect
 
 import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.location.Location
@@ -44,11 +41,10 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
-class AttendanceActivity : AppCompatActivity() {
+class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdateListener {
 
     private var isSerializedDataStored = false
     private val SERIALIZED_DATA_FILENAME = "image_data"
-    private val SHARED_PREF_IS_DATA_STORED_KEY = SharedPreferencesUtil.IS_DATA_STORED_KEY
     private lateinit var activityAttendanceBinding: ActivityAttendanceBinding
     private lateinit var previewView: PreviewView
     private lateinit var frameAnalyser: FrameAnalyser
@@ -62,8 +58,7 @@ class AttendanceActivity : AppCompatActivity() {
     private val firebaseStorage = FirebaseStorage.getInstance()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    private lateinit var username : String
-
+    private lateinit var matchedId: String
     companion object {
         lateinit var logTextView: TextView
 
@@ -75,7 +70,7 @@ class AttendanceActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        username = intent.getStringExtra("Username").toString()
+        matchedId = SharedPreferencesUtil.getSavedIdFromSharedPreferences(this).toString()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED
@@ -106,7 +101,7 @@ class AttendanceActivity : AppCompatActivity() {
         boundingBoxOverlay.setZOrderOnTop(true)
 
         faceNetModel = FaceNetModel(this, modelInfo, useGpu, useXNNPack)
-        frameAnalyser = FrameAnalyser(this, boundingBoxOverlay, faceNetModel)
+        frameAnalyser = FrameAnalyser(this, boundingBoxOverlay, faceNetModel, this)
 
         isSerializedDataStored = SharedPreferencesUtil.getDataStoredStatus(this)
 
@@ -117,7 +112,7 @@ class AttendanceActivity : AppCompatActivity() {
 
                 val referenceImageUri = fetchReferenceImageUri()
                 val referenceImage = downloadImageFromStorage(referenceImageUri)
-                saveImageData(referenceImage, username)
+                saveImageData(referenceImage, matchedId)
 
                 withContext(Dispatchers.Main) {
                     isSerializedDataStored = true
@@ -161,7 +156,7 @@ class AttendanceActivity : AppCompatActivity() {
                     activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: ${location.latitude}, ${location.longitude}"
                 } else {
                     activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Not available"
-                    showErrorDialog("Coordinates: Not available\nTry enabling Location access")
+                    showDialog("Coordinates: Not available\nTry enabling Location access")
                 }
             }
     }
@@ -177,12 +172,12 @@ class AttendanceActivity : AppCompatActivity() {
                 getLastKnownLocation()
             } else {
                 activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Permission denied"
-                showErrorDialog("Coordinates: Permission denied")
+                showDialog("Coordinates: Permission denied")
             }
         }
     }
 
-    private fun showErrorDialog(msg: String) {
+    private fun showDialog(msg: String) {
         MaterialAlertDialogBuilder(this)
             .setMessage(msg)
             .setPositiveButton("OK") { dialog, _ ->
@@ -246,8 +241,9 @@ class AttendanceActivity : AppCompatActivity() {
     }
 
     private suspend fun fetchReferenceImageUri(): Uri {
+
         val storageRef = firebaseStorage.reference
-        val imageRef = storageRef.child("photoIDs/${username.lowercase()}.jpg")
+        val imageRef = storageRef.child("photoIDs/${matchedId.toString()}.jpg")
         return imageRef.downloadUrl.await()
     }
 
@@ -289,4 +285,13 @@ class AttendanceActivity : AppCompatActivity() {
         Logger.log("Loaded serialized image data")
         return data
     }
+
+    override fun onAttendanceUpdated(success: Boolean) {
+        if (success) {
+            showDialog("Attendance marked successfully")
+        } else {
+            // Handle the failure case, if needed
+        }
+    }
+
 }

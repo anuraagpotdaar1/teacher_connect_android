@@ -57,7 +57,7 @@ class DashboardActivity : AppCompatActivity() {
                 }
 
             } else {
-                showTimeRangeErrorDialog()
+                showTimeRangeErrorDialog("Sorry, the attendance window is not available at this particular time. Try in institute specified time.")
             }
         }
         startAutoScroll(binding)
@@ -69,10 +69,9 @@ class DashboardActivity : AppCompatActivity() {
         return currentHour in startHour until endHour
     }
 
-    private fun showTimeRangeErrorDialog() {
+    private fun showTimeRangeErrorDialog(msg: String) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Attendance time frame")
-            .setMessage("Sorry, the attendance window is not available at this particular time. Try in institute specified time.")
+            .setMessage(msg)
             .setPositiveButton("OK") { dialog, _ ->
                 dialog.dismiss()
             }
@@ -157,42 +156,40 @@ class DashboardActivity : AppCompatActivity() {
             }
         }
     }
+
     private fun checkAttendance(id: String) {
         val firestore = FirebaseFirestore.getInstance()
         val collectionRef = firestore.collection("teachers")
         val documentRef = collectionRef.document(id)
 
-        documentRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Toast.makeText(this, "Failed to fetch data", Toast.LENGTH_SHORT).show()
-                return@addSnapshotListener
-            }
-
+        documentRef.get().addOnSuccessListener { snapshot ->
             if (snapshot != null && snapshot.exists()) {
-                val attendanceMap = snapshot.get("attendance") as? Map<String, String> ?: emptyMap()
+                val attendance = snapshot.get("attendance") as? Map<String, Any> ?: emptyMap()
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val todayDate = dateFormat.format(Date())
 
-                if (attendanceMap.containsKey(todayDate)) {
-                    val time = attendanceMap[todayDate]
+                if (attendance.containsKey(todayDate)) {
+                    val todayAttendance = attendance[todayDate] as? Map<String, String>
+                    val time = todayAttendance?.get("time")
+
                     if (time != null && isTimeWithinRange(15, 16)) {
                         // Attendance already taken for the specified time range
-                        showTimeRangeErrorDialog()
+                        showTimeRangeErrorDialog("Todays attendance is already marked")
                     } else {
                         // Attendance not taken for the specified time range
                         val intent = Intent(this, AttendanceActivity::class.java)
-                        intent.putExtra("Username", name)
                         startActivity(intent)
                     }
                 } else {
                     // Attendance not taken today
                     val intent = Intent(this, AttendanceActivity::class.java)
-                    intent.putExtra("Username", name)
                     startActivity(intent)
                 }
             } else {
                 Toast.makeText(this, "No such document", Toast.LENGTH_SHORT).show()
             }
+        }.addOnFailureListener {
+            // Handle the error
         }
     }
 

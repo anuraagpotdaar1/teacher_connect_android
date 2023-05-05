@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.anuraagpotdaar.teacherconnect.model.FaceNetModel
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
@@ -15,13 +16,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import kotlin.math.pow
 import kotlin.math.sqrt
 
 // Analyser class to process frames and produce detections.
 class FrameAnalyser( context: Context ,
                      private var boundingBoxOverlay: BoundingBoxOverlay ,
-                     private var model: FaceNetModel
+                     private var model: FaceNetModel ,
+                     private val onAttendanceUpdateListener: OnAttendanceUpdateListener
 ) : ImageAnalysis.Analyzer {
 
     private val realTimeOpts = FaceDetectorOptions.Builder()
@@ -159,12 +164,51 @@ class FrameAnalyser( context: Context ,
                         }
                     }
                     Logger.log( "Person identified as $bestScoreUserName" )
-                    predictions.add(
-                        Prediction(
-                            face.boundingBox,
-                            bestScoreUserName
+                    if (bestScoreUserName != "Unknown") {
+                        Logger.log("Person identified as $bestScoreUserName")
+
+                        // Save the current time in Firestore
+                        val currentTime = Calendar.getInstance().time
+                        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
+                        val todayDate = dateFormat.format(currentTime)
+                        val currentTimeString = timeFormat.format(currentTime)
+
+                        val firestore = FirebaseFirestore.getInstance()
+                        val documentRef = firestore.collection("teachers").document(bestScoreUserName)
+                        val attendanceData = mapOf(
+                            todayDate to mapOf(
+                                "time" to currentTimeString
+                            )
                         )
-                    )
+
+                        documentRef.update("attendance", attendanceData)
+                            .addOnSuccessListener {
+                                Logger.log("Attendance time saved successfully")
+                                onAttendanceUpdateListener.onAttendanceUpdated(true)
+                            }
+                            .addOnFailureListener { exception ->
+                                Logger.log("Error saving attendance time: $exception")
+                            }
+
+                        predictions.add(
+                            Prediction(
+                                face.boundingBox,
+                                bestScoreUserName
+                            )
+                        )
+
+                        // Break out of the loop
+                        break
+                    } else {
+                        predictions.add(
+                            Prediction(
+                                face.boundingBox,
+                                bestScoreUserName
+                            )
+                        )
+                    }
+
 
                 }
                 catch ( e : Exception ) {
@@ -197,5 +241,7 @@ class FrameAnalyser( context: Context ,
         val dot = x1.mapIndexed{ i , xi -> xi * x2[ i ] }.sum()
         return dot / (mag1 * mag2)
     }
-
+    interface OnAttendanceUpdateListener {
+        fun onAttendanceUpdated(success: Boolean)
+    }
 }
