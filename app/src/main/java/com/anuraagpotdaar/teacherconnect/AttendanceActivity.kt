@@ -178,14 +178,17 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
     }
 
     private fun showDialog(msg: String) {
-        MaterialAlertDialogBuilder(this)
-            .setMessage(msg)
-            .setPositiveButton("OK") { dialog, _ ->
-                dialog.dismiss()
-                finish()
-            }
-            .show()
+        if (!isFinishing && !isDestroyed) {
+            MaterialAlertDialogBuilder(this)
+                .setMessage(msg)
+                .setPositiveButton("OK") { dialog, _ ->
+                    dialog.dismiss()
+                    finish()
+                }
+                .show()
+        }
     }
+
     private fun setupCamera() {
         if (ActivityCompat.checkSelfPermission(
                 this,
