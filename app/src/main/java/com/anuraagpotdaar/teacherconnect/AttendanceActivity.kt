@@ -1,6 +1,7 @@
 package com.anuraagpotdaar.teacherconnect
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.location.Location
@@ -18,6 +19,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.anuraagpotdaar.teacherconnect.databinding.ActivityAttendanceBinding
 import com.anuraagpotdaar.teacherconnect.facerecognitionhelper.FrameAnalyser
@@ -27,6 +29,9 @@ import com.anuraagpotdaar.teacherconnect.model.Models
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
@@ -37,9 +42,6 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.*
 import java.util.concurrent.Executors
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdateListener {
 
@@ -59,6 +61,7 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     private lateinit var matchedId: String
+
     companion object {
         lateinit var logTextView: TextView
 
@@ -72,21 +75,11 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
 
         matchedId = SharedPreferencesUtil.getSavedIdFromSharedPreferences(this).toString()
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            // Request location permission
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),1000
-            )
-        } else {
-            getLastKnownLocation()
-        }
+
+        getLastKnownLocation()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.decorView.windowInsetsController!!
-                .hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            window.decorView.windowInsetsController!!.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
         } else {
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
         }
@@ -118,81 +111,43 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
                     isSerializedDataStored = true
                     SharedPreferencesUtil.saveDataStoredStatus(this@AttendanceActivity, true)
                     frameAnalyser.faceList = loadSerializedImageData()
-                    // Call the setupCamera() function
                     setupCamera()
                 }
             }
         } else {
-            // Call the setupCamera() function
             setupCamera()
             frameAnalyser.faceList = loadSerializedImageData()
         }
         Logger.log("onCreate: Finished")
 
     }
+
+    @SuppressLint("MissingPermission")
     private fun getLastKnownLocation() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
-        }
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: ${location.latitude}, ${location.longitude}"
-                } else {
-                    activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Not available"
-                    showDialog("Coordinates: Not available\nTry enabling Location access")
-                }
-            }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1000) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getLastKnownLocation()
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                activityAttendanceBinding.tvGPScoordinates.text =
+                    "Coordinates: ${location.latitude}, ${location.longitude}"
             } else {
-                activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Permission denied"
-                showDialog("Coordinates: Permission denied")
+                activityAttendanceBinding.tvGPScoordinates.text = "Coordinates: Not available"
+                showDialog("Coordinates: Not available\nTry enabling Location access")
             }
         }
     }
 
     private fun showDialog(msg: String) {
         if (!isFinishing && !isDestroyed) {
-            MaterialAlertDialogBuilder(this)
-                .setMessage(msg)
-                .setPositiveButton("OK") { dialog, _ ->
-                    dialog.dismiss()
-                    finish()
-                }
-                .show()
+            MaterialAlertDialogBuilder(this).setMessage(msg).setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+                finish()
+            }.show()
         }
     }
 
     private fun setupCamera() {
         if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
+                this, Manifest.permission.CAMERA
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(
@@ -211,57 +166,50 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
 
     private fun bindPreview(cameraProvider: ProcessCameraProvider) {
         Logger.log("AttendanceActivity: Binding camera preview")
-        val preview = Preview.Builder()
-            .build()
-            .also { it.setSurfaceProvider(previewView.surfaceProvider) }
+        val preview =
+            Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
 
-        val cameraSelector = CameraSelector.Builder()
-            .requireLensFacing(cameraFacing)
-            .build()
+        val cameraSelector = CameraSelector.Builder().requireLensFacing(cameraFacing).build()
 
-        val imageAnalysis = ImageAnalysis.Builder()
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build()
+        val imageAnalysis =
+            ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
 
         imageAnalysis.setAnalyzer(Executors.newFixedThreadPool(4), frameAnalyser)
 
         cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(
-            this as LifecycleOwner,
-            cameraSelector,
-            preview,
-            imageAnalysis
-        )
+
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)) {
+            cameraProvider.bindToLifecycle(
+                this as LifecycleOwner, cameraSelector, preview, imageAnalysis
+            )
+        } else {
+            Logger.log("Cannot bind camera to destroyed lifecycle.")
+        }
     }
 
     private suspend fun signInAnonymously() {
-        firebaseAuth.signInAnonymously()
-            .addOnCompleteListener(this) { task ->
-                if (!task.isSuccessful) {
-                    Logger.log("signInAnonymously:FAILURE")
-                }
-            }.await()
+        firebaseAuth.signInAnonymously().addOnCompleteListener(this) { task ->
+            if (!task.isSuccessful) {
+                Logger.log("signInAnonymously:FAILURE")
+            }
+        }.await()
     }
 
     private suspend fun fetchReferenceImageUri(): Uri {
 
         val storageRef = firebaseStorage.reference
-        val imageRef = storageRef.child("photoIDs/${matchedId.toString()}.jpg")
+        val imageRef = storageRef.child("photoIDs/$matchedId.jpg")
         return imageRef.downloadUrl.await()
     }
 
     private suspend fun downloadImageFromStorage(uri: Uri): Bitmap {
         return withContext(Dispatchers.IO) {
-            val requestOptions = RequestOptions()
-                .override(640, 480)
-                .diskCacheStrategy(DiskCacheStrategy.NONE)
-                .skipMemoryCache(true)
+            val requestOptions =
+                RequestOptions().override(640, 480).diskCacheStrategy(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(true)
 
-            Glide.with(this@AttendanceActivity)
-                .asBitmap()
-                .load(uri)
-                .apply(requestOptions)
-                .submit()
+            Glide.with(this@AttendanceActivity).asBitmap().load(uri).apply(requestOptions).submit()
                 .get()
         }
     }
@@ -292,8 +240,6 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
     override fun onAttendanceUpdated(success: Boolean) {
         if (success) {
             showDialog("Attendance marked successfully")
-        } else {
-            // Handle the failure case, if needed
         }
     }
 

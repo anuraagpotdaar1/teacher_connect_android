@@ -50,7 +50,7 @@ class FaceNetModel( context : Context ,
             else {
                 numThreads = Runtime.getRuntime().availableProcessors()
             }
-            setUseXNNPACK( useXNNPack )
+            useXNNPACK = useXNNPack
             useNNAPI = true
         }
         handler.post {

@@ -1,18 +1,19 @@
 package com.anuraagpotdaar.teacherconnect
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.anuraagpotdaar.teacherconnect.databinding.ActivityDashboardBinding
 import com.anuraagpotdaar.teacherconnect.databinding.CardItemBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.ParseException
 import java.text.SimpleDateFormat
@@ -20,11 +21,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+
 class DashboardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDashboardBinding
     private lateinit var name: String
 
     private lateinit var reprimand: String
+    private lateinit var matchedId: String
 
     data class CardItem(val title: String, val description: String)
 
@@ -34,15 +37,8 @@ class DashboardActivity : AppCompatActivity() {
 
         setContentView(binding.root)
 
-        val matchedId = SharedPreferencesUtil.getSavedIdFromSharedPreferences(this)
-        if (matchedId != null) {
-            fetchData(matchedId)
-        } else {
-            Toast.makeText(this, "Session expired. Please log in again.", Toast.LENGTH_LONG).show()
-            val intent = Intent(this, LoginActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            startActivity(intent)
-        }
+        matchedId = SharedPreferencesUtil.getSavedIdFromSharedPreferences(this).toString()
+        fetchData(matchedId)
 
         binding.btnNewReq.setOnClickListener {
             val intent = Intent(this, NewRequestActivity::class.java)
@@ -52,16 +48,56 @@ class DashboardActivity : AppCompatActivity() {
 
         binding.btnAttendance.setOnClickListener {
             if (isTimeWithinRange(15, 16)) {
-                if (matchedId != null) {
+                if (checkPermissions()) {
                     checkAttendance(matchedId)
+                } else {
+                    requestPermissions()
                 }
-
             } else {
                 showTimeRangeErrorDialog("Sorry, the attendance window is not available at this particular time. Try in institute specified time.")
             }
         }
         startAutoScroll(binding)
     }
+
+    private val PERMISSION_REQUEST_CODE = 100
+
+    private fun checkPermissions(): Boolean {
+        val cameraPermission = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+        val locationPermission =
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+
+        return cameraPermission == PackageManager.PERMISSION_GRANTED && locationPermission == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestPermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION),
+            PERMISSION_REQUEST_CODE
+        )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                checkAttendance(matchedId)
+            } else {
+                Toast.makeText(
+                    this,
+                    "Camera and location permissions are required to mark attendance",
+                    Toast.LENGTH_LONG
+                ).show()
+
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        }
+    }
+
+
     private fun isTimeWithinRange(startHour: Int, endHour: Int): Boolean {
         val calendar = Calendar.getInstance()
         val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
@@ -70,18 +106,18 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun showTimeRangeErrorDialog(msg: String) {
-        MaterialAlertDialogBuilder(this)
-            .setMessage(msg)
-            .setPositiveButton("OK") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .setNegativeButton("Test functionality") { dialog, _ ->
+        MaterialAlertDialogBuilder(this).setMessage(msg).setPositiveButton("OK") { dialog, _ ->
+            dialog.dismiss()
+        }.setNegativeButton("Test functionality") { dialog, _ ->
+            if (checkPermissions()) {
                 val intent = Intent(this, AttendanceActivity::class.java)
                 intent.putExtra("Username", name)
                 startActivity(intent)
                 dialog.dismiss()
+            } else {
+                requestPermissions()
             }
-            .show()
+        }.show()
     }
 
 
@@ -102,14 +138,16 @@ class DashboardActivity : AppCompatActivity() {
                 val behavior = snapshot.getString("Prev_postings.behaviour")
                 val availableLeaves = snapshot.getLong("Prev_postings.availableLeaves")?.toInt()
 
-                val reprimandsList = snapshot.get("Reprimands") as? List<Map<String, Any>> ?: emptyList()
+                val reprimandsList =
+                    snapshot.get("Reprimands") as? List<Map<String, Any>> ?: emptyList()
 
                 var latestTimestamp: Date? = null
                 var latestRemark: String? = null
 
                 for (reprimand in reprimandsList) {
                     val timestampStr = reprimand["timestamp"] as? String
-                    val timestampFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                    val timestampFormat =
+                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
                     val timestamp = if (timestampStr != null) {
                         try {
                             timestampFormat.parse(timestampStr)
@@ -233,6 +271,7 @@ class DashboardActivity : AppCompatActivity() {
         }
         handler.postDelayed(scrollRunnable, 2000)
     }
+
     override fun onDestroy() {
         super.onDestroy()
         SharedPreferencesUtil.clearAllSharedPreferences(this)

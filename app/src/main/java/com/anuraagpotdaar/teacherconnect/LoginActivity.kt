@@ -37,23 +37,23 @@ class LoginActivity : AppCompatActivity() {
         val collectionRef = firestore.collection("teachers")
 
         collectionRef.get().addOnSuccessListener { documents ->
-                var matchedId: String? = null
-                for (document in documents) {
-                    if (document.id.startsWith(id)) {
-                        matchedId = document.id
-                        break
-                    }
+            var matchedId: String? = null
+            for (document in documents) {
+                if (document.id.startsWith(id)) {
+                    matchedId = document.id
+                    break
                 }
+            }
 
-                if (matchedId != null) {
-                    saveIdToSharedPreferences(matchedId)
-                    onSuccess(matchedId)
-                } else {
-                    onFailure()
-                }
-            }.addOnFailureListener {
+            if (matchedId != null) {
+                saveIdToSharedPreferences(matchedId)
+                onSuccess(matchedId)
+            } else {
                 onFailure()
             }
+        }.addOnFailureListener {
+            onFailure()
+        }
     }
 
     private fun saveIdToSharedPreferences(id: String) {

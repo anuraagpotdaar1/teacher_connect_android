@@ -1,10 +1,10 @@
 package com.anuraagpotdaar.teacherconnect
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.anuraagpotdaar.teacherconnect.databinding.ActivityNewRequestBinding
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -35,10 +35,7 @@ class NewRequestActivity : AppCompatActivity() {
     }
 
     private fun uploadDataToFirestore(
-        reqType: String,
-        req: String,
-        matchedId: String?,
-        profileName: String?
+        reqType: String, req: String, matchedId: String?, profileName: String?
     ) {
         val firestore = FirebaseFirestore.getInstance()
         val collectionRef = firestore.collection("requests")
@@ -51,12 +48,10 @@ class NewRequestActivity : AppCompatActivity() {
             "useID" to matchedId,
         )
 
-        collectionRef.add(dataMap)
-            .addOnSuccessListener {
+        collectionRef.add(dataMap).addOnSuccessListener {
                 Toast.makeText(this, "Data uploaded successfully", Toast.LENGTH_SHORT).show()
                 finish()
-            }
-            .addOnFailureListener { exception ->
+            }.addOnFailureListener { exception ->
                 Toast.makeText(this, "Failed to upload data", Toast.LENGTH_SHORT).show()
                 Log.e("UploadActivity", "Failed to upload data", exception)
             }

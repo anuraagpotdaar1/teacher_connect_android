@@ -23,7 +23,7 @@ class TaskAdapter(private val tasks: List<TaskData>, private val context: Contex
 
     override fun onBindViewHolder(holder: TaskDataViewHolder, position: Int) {
         val task = tasks[position]
-        holder.bind(task, teacherId!!) // Remove the position argument
+        holder.bind(task, teacherId!!)
     }
 
     override fun getItemCount() = tasks.size
@@ -44,7 +44,10 @@ class TaskAdapter(private val tasks: List<TaskData>, private val context: Contex
 
 
         private fun updateStatusToCompleted(teacherId: String, position: Int) {
-            Log.d("TaskAdapter", "updateStatusToCompleted() called with teacherId: $teacherId, position: $position")
+            Log.d(
+                "TaskAdapter",
+                "updateStatusToCompleted() called with teacherId: $teacherId, position: $position"
+            )
 
             val firestore = FirebaseFirestore.getInstance()
             val teacherRef = firestore.collection("teachers").document(teacherId)
@@ -58,15 +61,14 @@ class TaskAdapter(private val tasks: List<TaskData>, private val context: Contex
                     val updatedTask = oldTask.toMutableMap()
                     updatedTask["status"] = "Completed"
 
-                    // Update tasks in a single operation
                     teacherRef.update(
-                        "Tasks", FieldValue.arrayRemove(oldTask),
-                        "Tasks", FieldValue.arrayUnion(updatedTask)
-                    )
-                        .addOnSuccessListener {
+                        "Tasks",
+                        FieldValue.arrayRemove(oldTask),
+                        "Tasks",
+                        FieldValue.arrayUnion(updatedTask)
+                    ).addOnSuccessListener {
                             Log.d("TaskAdapter", "Task status updated successfully")
-                        }
-                        .addOnFailureListener { exception ->
+                        }.addOnFailureListener { exception ->
                             Log.e("TaskAdapter", "Failed to update task status", exception)
                         }
                 } else {

@@ -1,4 +1,5 @@
 package com.anuraagpotdaar.teacherconnect.model
+
 class Models {
     companion object {
         val FACENET = ModelInfo(
