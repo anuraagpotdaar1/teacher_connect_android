@@ -136,7 +136,7 @@ class DashboardActivity : AppCompatActivity() {
                 name = snapshot.getString("Personal_details.f_name").toString()
                 val institute = snapshot.getString("Prev_postings.institute_name_1")
                 val behavior = snapshot.getString("Prev_postings.behaviour")
-                val availableLeaves = snapshot.getLong("Prev_postings.availableLeaves")?.toInt()
+                val availableLeaves = snapshot.getString("Prev_postings.availableLeaves")
 
                 val reprimandsList =
                     snapshot.get("Reprimands") as? List<Map<String, Any>> ?: emptyList()
