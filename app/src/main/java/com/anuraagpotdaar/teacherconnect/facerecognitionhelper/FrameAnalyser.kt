@@ -88,7 +88,9 @@ class FrameAnalyser(
                     val croppedBitmap =
                         BitmapUtils.cropRectFromBitmap(cameraFrameBitmap, face.boundingBox)
                     subject = model.getFaceEmbedding(croppedBitmap)
+
                     for (i in 0 until faceList.size) {
+
                         if (nameScoreHashmap[faceList[i].first] == null) {
                             val p = ArrayList<Float>()
                             if (metricToBeUsed == "cosine") {
@@ -118,25 +120,17 @@ class FrameAnalyser(
 
                     val avgScores =
                         nameScoreHashmap.values.map { scores -> scores.toFloatArray().average() }
-                    Logger.log("Average score for each user : $nameScoreHashmap")
-
                     val names = nameScoreHashmap.keys.toTypedArray()
                     nameScoreHashmap.clear()
 
-                    val bestScoreUserName: String = if (metricToBeUsed == "cosine") {
-                        if (avgScores.maxOrNull()!! > model.model.cosineThreshold) {
-                            names[avgScores.indexOf(avgScores.maxOrNull()!!)]
-                        } else {
-                            "Unknown"
-                        }
-                    } else {
-                        if (avgScores.minOrNull()!! > model.model.l2Threshold) {
-                            "Unknown"
-                        } else {
-                            names[avgScores.indexOf(avgScores.minOrNull()!!)]
+                    var bestScoreUserName = "Unknown"
+                    for (i in avgScores.indices) {
+                        if (avgScores[i] > 9) {
+                            bestScoreUserName = names[i]
+                            break
                         }
                     }
-                    Logger.log("Person identified as $bestScoreUserName")
+
                     if (bestScoreUserName != "Unknown") {
                         Logger.log("Person identified as $bestScoreUserName")
 
@@ -168,7 +162,6 @@ class FrameAnalyser(
                                 face.boundingBox, bestScoreUserName
                             )
                         )
-
                         break
                     } else {
                         predictions.add(
