@@ -11,17 +11,16 @@ import android.view.SurfaceView
 import androidx.camera.core.CameraSelector
 import androidx.core.graphics.toRectF
 
-class BoundingBoxOverlay( context: Context , attributeSet: AttributeSet )
-    : SurfaceView( context , attributeSet ) , SurfaceHolder.Callback {
+class BoundingBoxOverlay(context: Context, attributeSet: AttributeSet) :
+    SurfaceView(context, attributeSet), SurfaceHolder.Callback {
 
     var areDimsInit = false
     var frameHeight = 0
     var frameWidth = 0
 
-    var cameraFacing : Int = CameraSelector.LENS_FACING_FRONT
+    var cameraFacing: Int = CameraSelector.LENS_FACING_FRONT
 
     var faceBoundingBoxes: ArrayList<Prediction>? = null
-
 
     private var output2OverlayTransform: Matrix = Matrix()
 
@@ -35,21 +34,17 @@ class BoundingBoxOverlay( context: Context , attributeSet: AttributeSet )
         color = Color.WHITE
     }
 
-
     override fun surfaceCreated(holder: SurfaceHolder) {
         TODO("Not yet implemented")
     }
-
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         TODO("Not yet implemented")
     }
 
-
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         TODO("Not yet implemented")
     }
-
 
     override fun onDraw(canvas: Canvas?) {
         if (faceBoundingBoxes != null) {
@@ -59,12 +54,11 @@ class BoundingBoxOverlay( context: Context , attributeSet: AttributeSet )
                 val xFactor: Float = viewWidth / frameWidth.toFloat()
                 val yFactor: Float = viewHeight / frameHeight.toFloat()
                 output2OverlayTransform.preScale(xFactor, yFactor)
-                if( cameraFacing == CameraSelector.LENS_FACING_FRONT ) {
+                if (cameraFacing == CameraSelector.LENS_FACING_FRONT) {
                     output2OverlayTransform.postScale(-1f, 1f, viewWidth / 2f, viewHeight / 2f)
                 }
                 areDimsInit = true
-            }
-            else {
+            } else {
                 for (face in faceBoundingBoxes!!) {
                     val boundingBox = face.bbox.toRectF()
                     output2OverlayTransform.mapRect(boundingBox)
@@ -73,7 +67,7 @@ class BoundingBoxOverlay( context: Context , attributeSet: AttributeSet )
                         face.label,
                         boundingBox.centerX(),
                         boundingBox.centerY(),
-                        textPaint
+                        textPaint,
                     )
                 }
             }

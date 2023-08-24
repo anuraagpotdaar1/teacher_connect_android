@@ -75,7 +75,6 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
 
         matchedId = SharedPreferencesUtil.getSavedIdFromSharedPreferences(this).toString()
 
-
         getLastKnownLocation()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -98,7 +97,6 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
 
         isSerializedDataStored = SharedPreferencesUtil.getDataStoredStatus(this)
 
-
         if (!isSerializedDataStored) {
             GlobalScope.launch(Dispatchers.IO) {
                 signInAnonymously()
@@ -119,7 +117,6 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
             frameAnalyser.faceList = loadSerializedImageData()
         }
         Logger.log("onCreate: Finished")
-
     }
 
     @SuppressLint("MissingPermission")
@@ -147,11 +144,13 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
 
     private fun setupCamera() {
         if (ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.CAMERA
+                this, Manifest.permission.CAMERA,
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.CAMERA), 100
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                100,
             )
             return
         }
@@ -162,7 +161,6 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
             bindPreview(cameraProvider)
         }, ContextCompat.getMainExecutor(this))
     }
-
 
     private fun bindPreview(cameraProvider: ProcessCameraProvider) {
         Logger.log("AttendanceActivity: Binding camera preview")
@@ -181,7 +179,10 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
 
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)) {
             cameraProvider.bindToLifecycle(
-                this as LifecycleOwner, cameraSelector, preview, imageAnalysis
+                this as LifecycleOwner,
+                cameraSelector,
+                preview,
+                imageAnalysis,
             )
         } else {
             Logger.log("Cannot bind camera to destroyed lifecycle.")
@@ -197,7 +198,6 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
     }
 
     private suspend fun fetchReferenceImageUri(): Uri {
-
         val storageRef = firebaseStorage.reference
         val imageRef = storageRef.child("photoIDs/$matchedId.jpg")
         return imageRef.downloadUrl.await()
@@ -242,5 +242,4 @@ class AttendanceActivity : AppCompatActivity(), FrameAnalyser.OnAttendanceUpdate
             showDialog("Attendance marked successfully")
         }
     }
-
 }

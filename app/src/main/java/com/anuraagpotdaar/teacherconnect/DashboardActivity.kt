@@ -21,7 +21,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-
 class DashboardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDashboardBinding
     private lateinit var name: String
@@ -74,12 +73,14 @@ class DashboardActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(
             this,
             arrayOf(Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION),
-            PERMISSION_REQUEST_CODE
+            PERMISSION_REQUEST_CODE,
         )
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
     ) {
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
@@ -88,15 +89,13 @@ class DashboardActivity : AppCompatActivity() {
                 Toast.makeText(
                     this,
                     "Camera and location permissions are required to mark attendance",
-                    Toast.LENGTH_LONG
+                    Toast.LENGTH_LONG,
                 ).show()
-
             }
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         }
     }
-
 
     private fun isTimeWithinRange(startHour: Int, endHour: Int): Boolean {
         val calendar = Calendar.getInstance()
@@ -119,7 +118,6 @@ class DashboardActivity : AppCompatActivity() {
             }
         }.show()
     }
-
 
     private fun fetchData(id: String) {
         val firestore = FirebaseFirestore.getInstance()
@@ -188,7 +186,6 @@ class DashboardActivity : AppCompatActivity() {
                 binding.recyclerView.layoutManager = LinearLayoutManager(this)
                 val adapter = TaskAdapter(incompleteTasks, this)
                 binding.recyclerView.adapter = adapter
-
             } else {
                 Toast.makeText(this, "No such document", Toast.LENGTH_SHORT).show()
             }
@@ -243,7 +240,8 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun updateCardItems() {
         val cardItems = listOf(
-            CardItem("Next class", "DSA T.E. in 14 minutes."), CardItem("Reprimands", reprimand)
+            CardItem("Next class", "DSA T.E. in 14 minutes."),
+            CardItem("Reprimands", reprimand),
         )
 
         binding.cardContainer.removeAllViews()

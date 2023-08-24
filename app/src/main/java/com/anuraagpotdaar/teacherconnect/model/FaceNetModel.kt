@@ -22,32 +22,33 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class FaceNetModel( context : Context ,
-                    var model : ModelInfo ,
-                    useGpu : Boolean ,
-                    useXNNPack : Boolean) {
+class FaceNetModel(
+    context: Context,
+    var model: ModelInfo,
+    useGpu: Boolean,
+    useXNNPack: Boolean,
+) {
 
     private val imgSize = model.inputDims
 
     val embeddingDim = model.outputDims
 
-    private lateinit var interpreter : Interpreter
+    private lateinit var interpreter: Interpreter
 
     private val imageTensorProcessor = ImageProcessor.Builder()
-        .add( ResizeOp( imgSize , imgSize , ResizeOp.ResizeMethod.BILINEAR ) )
-        .add( StandardizeOp() )
+        .add(ResizeOp(imgSize, imgSize, ResizeOp.ResizeMethod.BILINEAR))
+        .add(StandardizeOp())
         .build()
 
     private val handlerThread = HandlerThread("FaceNetModelThread").apply { start() }
     private val handler = Handler(handlerThread.looper)
     init {
         val interpreterOptions = Interpreter.Options().apply {
-            if ( useGpu ) {
-                if ( CompatibilityList().isDelegateSupportedOnThisDevice ) {
-                    addDelegate( GpuDelegate( CompatibilityList().bestOptionsForThisDevice ))
+            if (useGpu) {
+                if (CompatibilityList().isDelegateSupportedOnThisDevice) {
+                    addDelegate(GpuDelegate(CompatibilityList().bestOptionsForThisDevice))
                 }
-            }
-            else {
+            } else {
                 numThreads = Runtime.getRuntime().availableProcessors()
             }
             useXNNPACK = useXNNPack
@@ -58,8 +59,8 @@ class FaceNetModel( context : Context ,
             Logger.log("Using ${model.name} model.")
         }
     }
-    fun getFaceEmbedding( image : Bitmap ) : FloatArray {
-        return runFaceNet( convertBitmapToBuffer( image ))[0]
+    fun getFaceEmbedding(image: Bitmap): FloatArray {
+        return runFaceNet(convertBitmapToBuffer(image))[0]
     }
     private fun runFaceNet(inputs: Any): Array<FloatArray> {
         val faceNetModelOutputs = Array(1) { FloatArray(embeddingDim) }
@@ -71,23 +72,22 @@ class FaceNetModel( context : Context ,
         latch.await()
         return faceNetModelOutputs
     }
-    private fun convertBitmapToBuffer( image : Bitmap) : ByteBuffer {
-        return imageTensorProcessor.process( TensorImage.fromBitmap( image ) ).buffer
+    private fun convertBitmapToBuffer(image: Bitmap): ByteBuffer {
+        return imageTensorProcessor.process(TensorImage.fromBitmap(image)).buffer
     }
     class StandardizeOp : TensorOperator {
 
         override fun apply(p0: TensorBuffer?): TensorBuffer {
             val pixels = p0!!.floatArray
             val mean = pixels.average().toFloat()
-            var std = sqrt( pixels.map{ pi -> ( pi - mean ).pow( 2 ) }.sum() / pixels.size.toFloat() )
-            std = max( std , 1f / sqrt( pixels.size.toFloat() ))
-            for ( i in pixels.indices ) {
-                pixels[ i ] = ( pixels[ i ] - mean ) / std
+            var std = sqrt(pixels.map { pi -> (pi - mean).pow(2) }.sum() / pixels.size.toFloat())
+            std = max(std, 1f / sqrt(pixels.size.toFloat()))
+            for (i in pixels.indices) {
+                pixels[ i ] = (pixels[ i ] - mean) / std
             }
-            val output = TensorBufferFloat.createFixedSize( p0.shape , DataType.FLOAT32 )
-            output.loadArray( pixels )
+            val output = TensorBufferFloat.createFixedSize(p0.shape, DataType.FLOAT32)
+            output.loadArray(pixels)
             return output
         }
     }
 }
-

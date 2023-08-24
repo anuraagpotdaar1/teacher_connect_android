@@ -42,11 +42,10 @@ class TaskAdapter(private val tasks: List<TaskData>, private val context: Contex
             }
         }
 
-
         private fun updateStatusToCompleted(teacherId: String, position: Int) {
             Log.d(
                 "TaskAdapter",
-                "updateStatusToCompleted() called with teacherId: $teacherId, position: $position"
+                "updateStatusToCompleted() called with teacherId: $teacherId, position: $position",
             )
 
             val firestore = FirebaseFirestore.getInstance()
@@ -65,12 +64,12 @@ class TaskAdapter(private val tasks: List<TaskData>, private val context: Contex
                         "Tasks",
                         FieldValue.arrayRemove(oldTask),
                         "Tasks",
-                        FieldValue.arrayUnion(updatedTask)
+                        FieldValue.arrayUnion(updatedTask),
                     ).addOnSuccessListener {
-                            Log.d("TaskAdapter", "Task status updated successfully")
-                        }.addOnFailureListener { exception ->
-                            Log.e("TaskAdapter", "Failed to update task status", exception)
-                        }
+                        Log.d("TaskAdapter", "Task status updated successfully")
+                    }.addOnFailureListener { exception ->
+                        Log.e("TaskAdapter", "Failed to update task status", exception)
+                    }
                 } else {
                     Log.w("TaskAdapter", "Document not found")
                 }
