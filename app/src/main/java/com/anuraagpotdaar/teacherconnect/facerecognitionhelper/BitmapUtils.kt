@@ -17,16 +17,16 @@ import java.io.InputStream
 class BitmapUtils {
 
     companion object {
-        fun cropRectFromBitmap(source: Bitmap, rect: Rect ): Bitmap {
+        fun cropRectFromBitmap(source: Bitmap, rect: Rect): Bitmap {
             var width = rect.width()
             var height = rect.height()
-            if ( (rect.left + width) > source.width ){
+            if ((rect.left + width) > source.width) {
                 width = source.width - rect.left
             }
-            if ( (rect.top + height ) > source.height ){
+            if ((rect.top + height) > source.height) {
                 height = source.height - rect.top
             }
-            val croppedBitmap = Bitmap.createBitmap( source , rect.left , rect.top , width , height )
+            val croppedBitmap = Bitmap.createBitmap(source, rect.left, rect.top, width, height)
             // to save the input image.
             // BitmapUtils.saveBitmap( context , croppedBitmap , "source" )
             return croppedBitmap
@@ -34,7 +34,7 @@ class BitmapUtils {
         fun decodeStreamToScaledBitmap(
             inputStream: InputStream?,
             reqWidth: Int,
-            reqHeight: Int
+            reqHeight: Int,
         ): Bitmap? {
             val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
@@ -48,7 +48,7 @@ class BitmapUtils {
         private fun calculateInSampleSize(
             options: BitmapFactory.Options,
             reqWidth: Int,
-            reqHeight: Int
+            reqHeight: Int,
         ): Int {
             val (height: Int, width: Int) = options.run { outHeight to outWidth }
             var inSampleSize = 1
@@ -64,7 +64,7 @@ class BitmapUtils {
             return inSampleSize
         }
 
-        fun getBitmapFromUri( contentResolver : ContentResolver , uri: Uri): Bitmap {
+        fun getBitmapFromUri(contentResolver: ContentResolver, uri: Uri): Bitmap {
             val parcelFileDescriptor: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "r")
             val fileDescriptor: FileDescriptor = parcelFileDescriptor!!.fileDescriptor
             val image: Bitmap = BitmapFactory.decodeFileDescriptor(fileDescriptor)
@@ -72,24 +72,24 @@ class BitmapUtils {
             return image
         }
 
-        fun rotateBitmap( source: Bitmap , degrees : Float ): Bitmap {
+        fun rotateBitmap(source: Bitmap, degrees: Float): Bitmap {
             val matrix = Matrix()
-            matrix.postRotate( degrees )
-            return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix , false )
+            matrix.postRotate(degrees)
+            return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, false)
         }
 
-        fun flipBitmap( source: Bitmap ): Bitmap {
+        fun flipBitmap(source: Bitmap): Bitmap {
             val matrix = Matrix()
             matrix.postScale(-1f, 1f, source.width / 2f, source.height / 2f)
             return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
         }
 
         fun saveBitmap(context: Context, image: Bitmap, name: String) {
-            val fileOutputStream = FileOutputStream(File( context.filesDir.absolutePath + "/$name.png"))
+            val fileOutputStream = FileOutputStream(File(context.filesDir.absolutePath + "/$name.png"))
             image.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream)
         }
 
-        fun imageToBitmap( image : Image , rotationDegrees : Int ): Bitmap {
+        fun imageToBitmap(image: Image, rotationDegrees: Int): Bitmap {
             val yBuffer = image.planes[0].buffer
             val uBuffer = image.planes[1].buffer
             val vBuffer = image.planes[2].buffer
@@ -105,16 +105,18 @@ class BitmapUtils {
             yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
             val yuv = out.toByteArray()
             var output = BitmapFactory.decodeByteArray(yuv, 0, yuv.size)
-            output = rotateBitmap( output , rotationDegrees.toFloat() )
-            return flipBitmap( output )
+            output = rotateBitmap(output, rotationDegrees.toFloat())
+            return flipBitmap(output)
         }
 
         suspend fun bitmapToNV21ByteArray(bitmap: Bitmap): ByteArray = withContext(Dispatchers.Default) {
-            val argb = IntArray(bitmap.width * bitmap.height )
+            val argb = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(argb, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-            val yuv = ByteArray(bitmap.height * bitmap.width + 2 * Math.ceil(bitmap.height / 2.0).toInt()
-                    * Math.ceil(bitmap.width / 2.0).toInt())
-            encodeYUV420SP( yuv, argb, bitmap.width, bitmap.height)
+            val yuv = ByteArray(
+                bitmap.height * bitmap.width + 2 * Math.ceil(bitmap.height / 2.0).toInt() *
+                    Math.ceil(bitmap.width / 2.0).toInt(),
+            )
+            encodeYUV420SP(yuv, argb, bitmap.width, bitmap.height)
             return@withContext yuv
         }
 
@@ -146,7 +148,5 @@ class BitmapUtils {
                 }
             }
         }
-
     }
-
 }

@@ -27,7 +27,7 @@ class FrameAnalyser(
     context: Context,
     private var boundingBoxOverlay: BoundingBoxOverlay,
     private var model: FaceNetModel,
-    private val onAttendanceUpdateListener: OnAttendanceUpdateListener
+    private val onAttendanceUpdateListener: OnAttendanceUpdateListener,
 ) : ImageAnalysis.Analyzer {
 
     private val realTimeOpts =
@@ -69,15 +69,14 @@ class FrameAnalyser(
 
             val inputImage = InputImage.fromBitmap(frameBitmap, 0)
             detector.process(inputImage).addOnSuccessListener { faces ->
-                    CoroutineScope(Dispatchers.Default).launch {
-                        runModel(faces, frameBitmap)
-                    }
-                }.addOnCompleteListener {
-                    image.close()
+                CoroutineScope(Dispatchers.Default).launch {
+                    runModel(faces, frameBitmap)
                 }
+            }.addOnCompleteListener {
+                image.close()
+            }
         }
     }
-
 
     private suspend fun runModel(faces: List<Face>, cameraFrameBitmap: Bitmap) {
         withContext(Dispatchers.Default) {
@@ -90,7 +89,6 @@ class FrameAnalyser(
                     subject = model.getFaceEmbedding(croppedBitmap)
 
                     for (i in 0 until faceList.size) {
-
                         if (nameScoreHashmap[faceList[i].first] == null) {
                             val p = ArrayList<Float>()
                             if (metricToBeUsed == "cosine") {
@@ -104,15 +102,15 @@ class FrameAnalyser(
                                 nameScoreHashmap[faceList[i].first]?.add(
                                     cosineSimilarity(
                                         subject,
-                                        faceList[i].second
-                                    )
+                                        faceList[i].second,
+                                    ),
                                 )
                             } else {
                                 nameScoreHashmap[faceList[i].first]?.add(
                                     L2Norm(
                                         subject,
-                                        faceList[i].second
-                                    )
+                                        faceList[i].second,
+                                    ),
                                 )
                             }
                         }
@@ -144,8 +142,8 @@ class FrameAnalyser(
                         val documentRef = firestore.collection("teachers").document(bestScoreUserName)
                         val attendanceData = mapOf(
                             todayDate to mapOf(
-                                "time" to currentTimeString
-                            )
+                                "time" to currentTimeString,
+                            ),
                         )
 
                         documentRef.update("attendance", FieldValue.arrayUnion(attendanceData))
@@ -159,18 +157,19 @@ class FrameAnalyser(
 
                         predictions.add(
                             Prediction(
-                                face.boundingBox, bestScoreUserName
-                            )
+                                face.boundingBox,
+                                bestScoreUserName,
+                            ),
                         )
                         break
                     } else {
                         predictions.add(
                             Prediction(
-                                face.boundingBox, bestScoreUserName
-                            )
+                                face.boundingBox,
+                                bestScoreUserName,
+                            ),
                         )
                     }
-
                 } catch (e: Exception) {
                     Log.e("Model", "Exception in FrameAnalyser : ${e.message}")
                     continue

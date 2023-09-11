@@ -35,7 +35,10 @@ class NewRequestActivity : AppCompatActivity() {
     }
 
     private fun uploadDataToFirestore(
-        reqType: String, req: String, matchedId: String?, profileName: String?
+        reqType: String,
+        req: String,
+        matchedId: String?,
+        profileName: String?,
     ) {
         val firestore = FirebaseFirestore.getInstance()
         val collectionRef = firestore.collection("requests")
@@ -49,11 +52,11 @@ class NewRequestActivity : AppCompatActivity() {
         )
 
         collectionRef.add(dataMap).addOnSuccessListener {
-                Toast.makeText(this, "Data uploaded successfully", Toast.LENGTH_SHORT).show()
-                finish()
-            }.addOnFailureListener { exception ->
-                Toast.makeText(this, "Failed to upload data", Toast.LENGTH_SHORT).show()
-                Log.e("UploadActivity", "Failed to upload data", exception)
-            }
+            Toast.makeText(this, "Data uploaded successfully", Toast.LENGTH_SHORT).show()
+            finish()
+        }.addOnFailureListener { exception ->
+            Toast.makeText(this, "Failed to upload data", Toast.LENGTH_SHORT).show()
+            Log.e("UploadActivity", "Failed to upload data", exception)
+        }
     }
 }
